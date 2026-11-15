@@ -1,7 +1,8 @@
 """Слой работы с БД SQLite (п.16)."""
-import os
 import sqlite3
 from contextlib import contextmanager
+
+from itdesk_core.config import db_path
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users(
@@ -29,7 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_tickets_author ON tickets(author_id);
 
 @contextmanager
 def conn():
-    c = sqlite3.connect(os.environ.get("ITDESK_DB", "itdesk.db"))
+    c = sqlite3.connect(db_path())
     c.row_factory = sqlite3.Row
     c.execute("PRAGMA foreign_keys=ON")
     try:

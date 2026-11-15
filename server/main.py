@@ -10,6 +10,8 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
+from itdesk_core import __version__
+
 from . import db
 from .security import hash_password, new_token, verify_password
 
@@ -67,6 +69,17 @@ def staff(u=Depends(current_user)):
     if u["role"] not in ("tech", "admin"):
         raise HTTPException(403, "Недостаточно прав")
     return u
+
+
+@app.get("/health")
+def health():
+    """Проверка работоспособности: сервер запущен и БД доступна."""
+    try:
+        with db.conn() as c:
+            c.execute("SELECT 1 FROM users LIMIT 1")
+    except sqlite3.Error:
+        raise HTTPException(503, "База данных недоступна")
+    return {"status": "ok", "version": __version__}
 
 
 @app.post("/auth/register", status_code=201)

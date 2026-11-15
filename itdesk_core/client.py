@@ -1,14 +1,17 @@
 """Клиент REST API ITDesk (не зависит от GUI, можно использовать в любом проекте)."""
 import requests
 
+from .config import load_config
+
 
 class ApiError(Exception):
     pass
 
 
 class Api:
-    def __init__(self, base="http://127.0.0.1:8000"):
-        self.base, self.token, self.user = base, None, None
+    def __init__(self, base=None):
+        self.base = base or load_config()["client"]["server_url"]
+        self.token, self.user = None, None
 
     def _req(self, method, path, **kw):
         headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
@@ -21,6 +24,10 @@ class Api:
             detail = r.json().get("detail") if is_json else r.text
             raise ApiError(detail if isinstance(detail, str) else "Проверьте введённые данные")
         return r.json() if is_json else r.content
+
+    def health(self):
+        """Проверка доступности сервера и БД (без авторизации)."""
+        return self._req("GET", "/health")
 
     def login(self, username, password):
         d = self._req("POST", "/auth/login", json={"username": username, "password": password})
