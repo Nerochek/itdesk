@@ -1,5 +1,4 @@
 """Десктопный интерфейс на PyQt6 (п.10, п.11). Запуск: python run_client.py"""
-import html
 import sys
 
 from PyQt6.QtWidgets import (QAbstractItemView, QApplication, QComboBox, QDialog, QFileDialog,
@@ -7,18 +6,13 @@ from PyQt6.QtWidgets import (QAbstractItemView, QApplication, QComboBox, QDialog
                              QPlainTextEdit, QPushButton, QTableWidget, QTableWidgetItem,
                              QTextBrowser, QVBoxLayout, QWidget)
 
-from .api import Api, ApiError
-
-STATUS = {"new": "Новая", "in_progress": "В работе", "resolved": "Решена", "closed": "Закрыта"}
-PRIORITY = {"low": "Низкий", "medium": "Средний", "high": "Высокий"}
-CATEGORY = {"hardware": "Оборудование", "network": "Сеть / Wi-Fi", "software": "ПО",
-            "projector": "Проектор / аудитория", "account": "Учётная запись", "other": "Другое"}
-esc = html.escape
+from itdesk_core import (CATEGORY, PRIORITY, STATUS, Api, ApiError, format_stats,
+                         format_ticket_html, label)
 
 
 def fill(combo, mapping):
-    for key, label in mapping.items():
-        combo.addItem(label, key)
+    for key, text in mapping.items():
+        combo.addItem(text, key)
 
 
 class LoginDialog(QDialog):
@@ -64,9 +58,9 @@ class NewTicketDialog(QDialog):
         fill(self.prio, PRIORITY)
         self.prio.setCurrentIndex(1)
         form = QFormLayout(self)
-        for label, w in [("Тема", self.title), ("Аудитория/кабинет", self.room),
-                         ("Категория", self.cat), ("Приоритет", self.prio), ("Описание", self.desc)]:
-            form.addRow(label, w)
+        for text, w in [("Тема", self.title), ("Аудитория/кабинет", self.room),
+                        ("Категория", self.cat), ("Приоритет", self.prio), ("Описание", self.desc)]:
+            form.addRow(text, w)
         ok = QPushButton("Отправить")
         ok.clicked.connect(self.accept)
         form.addRow(ok)
@@ -110,17 +104,7 @@ class TicketDialog(QDialog):
         t = self.api.ticket(self.tid)
         if hasattr(self, "status"):
             self.status.setCurrentIndex(self.status.findData(t["status"]))
-        h = (f"<h3>#{t['id']} {esc(t['title'])}</h3><p><b>Статус:</b> {STATUS[t['status']]} | "
-             f"<b>Приоритет:</b> {PRIORITY[t['priority']]} | <b>Категория:</b> {CATEGORY[t['category']]}<br>"
-             f"<b>Автор:</b> {esc(t['author'])} | <b>Исполнитель:</b> {esc(t['assignee'] or '—')} | "
-             f"<b>Кабинет:</b> {esc(t['room'] or '—')}</p><p>{esc(t['description'])}</p>"
-             f"<hr><b>Комментарии</b><br>")
-        h += "".join(f"<p><i>{esc(c['username'])}, {c['created_at']}</i>: {esc(c['text'])}</p>"
-                     for c in t["comments"])
-        h += "<hr><b>История</b><br>" + "".join(
-            f"<small>{x['created_at']} — {esc(x['username'])}: {esc(x['action'])}</small><br>"
-            for x in t["history"])
-        self.view.setHtml(h)
+        self.view.setHtml(format_ticket_html(t))
 
     def _safe(self, fn):
         try:
@@ -187,8 +171,8 @@ class MainWindow(QMainWindow):
         rows = self.guard(lambda: self.api.tickets(self.filter.currentData())) or []
         self.table.setRowCount(len(rows))
         for i, t in enumerate(rows):
-            vals = [t["id"], t["title"], CATEGORY[t["category"]], PRIORITY[t["priority"]],
-                    STATUS[t["status"]], t["assignee"] or "—"]
+            vals = [t["id"], t["title"], label(CATEGORY, t["category"]), label(PRIORITY, t["priority"]),
+                    label(STATUS, t["status"]), t["assignee"] or "—"]
             for j, v in enumerate(vals):
                 self.table.setItem(i, j, QTableWidgetItem(str(v)))
 
@@ -208,11 +192,7 @@ class MainWindow(QMainWindow):
     def show_stats(self):
         s = self.guard(self.api.stats)
         if s:
-            fmt = lambda d, m: "\n".join(f"  {m.get(k, k)}: {v}" for k, v in d.items()) or "  —"
-            QMessageBox.information(
-                self, "Статистика",
-                f"По статусам:\n{fmt(s['by_status'], STATUS)}\n\nПо категориям:\n"
-                f"{fmt(s['by_category'], CATEGORY)}\n\nПо приоритетам:\n{fmt(s['by_priority'], PRIORITY)}")
+            QMessageBox.information(self, "Статистика", format_stats(s))
 
     def export(self):
         path, _ = QFileDialog.getSaveFileName(self, "Сохранить", "tickets.csv", "CSV (*.csv)")
