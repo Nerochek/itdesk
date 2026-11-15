@@ -1,0 +1,6 @@
+fastapi>=0.110
+uvicorn>=0.29
+PyQt6>=6.6
+requests>=2.31
+pytest>=8.0
+httpx>=0.27
