@@ -1,0 +1,13 @@
+{
+  "date": "2026-11-18",
+  "raw_count": 10200,
+  "clean_count": 10200,
+  "source_counts": {
+    "demo": 10000,
+    "jsonplaceholder": 200
+  },
+  "spark_rdd_dataframe_sql_equal": true,
+  "unit_tests": 4,
+  "existing_tests": 22,
+  "hadoop_completed": false
+}

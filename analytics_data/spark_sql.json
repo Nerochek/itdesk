@@ -1,0 +1,32 @@
+{
+  "rows": [
+    {
+      "category": "account",
+      "total": 814
+    },
+    {
+      "category": "hardware",
+      "total": 838
+    },
+    {
+      "category": "network",
+      "total": 866
+    },
+    {
+      "category": "other",
+      "total": 918
+    },
+    {
+      "category": "projector",
+      "total": 883
+    },
+    {
+      "category": "software",
+      "total": 804
+    }
+  ],
+  "baseline_seconds": 0.033244499999455,
+  "cached_seconds": 0.022195900000042457,
+  "cache_build_seconds": 0.21889810000084253,
+  "note": "Медиана 3 повторов после прогрева. Время построения кэша не включено. Ускорение не гарантируется."
+}

@@ -1,0 +1,17 @@
+{
+  "python": "3.14.7 (tags/v3.14.7:823f032, Aug  5 2026, 10:51:32) [MSC v.1944 64 bit (AMD64)]",
+  "libraries": {
+    "pymongo": true,
+    "pandas": true,
+    "pyspark": true,
+    "matplotlib": true
+  },
+  "commands": {
+    "mongod": null,
+    "java": "C:\\Users\\Nero\\Desktop\\itdesk\\.tools\\java\\jdk-17.0.21+9\\bin\\java.EXE",
+    "hadoop": "C:\\Users\\Nero\\Desktop\\itdesk\\.tools\\hadoop-3.5.0\\bin\\hadoop.CMD"
+  },
+  "JAVA_HOME": "C:\\Users\\Nero\\Desktop\\itdesk\\.tools\\java\\jdk-17.0.21+9",
+  "HADOOP_HOME": "C:\\Users\\Nero\\Desktop\\itdesk\\.tools\\hadoop-3.5.0",
+  "mongo_ping": 1.0
+}

@@ -44,3 +44,16 @@ pip install -r requirements-build.txt
 python build.py
 ```
 В `dist/` появятся `ITDesk-Server.exe`, `ITDesk-Client.exe`, `config.ini` и `start.bat` (запускает сервер, затем клиент). Папку `dist/` можно копировать на другой компьютер целиком.
+
+## Аналитика
+
+[Запуск и объяснение](docs/analytics-guide.md) · [Отчёт по пунктам 6–15](docs/practice-report.md) · [Таблица CSV](docs/practice-report.csv).
+
+```powershell
+python run_analytics.py doctor
+python run_analytics.py full
+```
+
+Новые зависимости: `requirements-analytics.txt`. Локальные MongoDB, Java и Hadoop находятся в `.tools` на этом компьютере и не включаются в Git.
+Пункт 11 выполнен частично: алгоритм MapReduce проверен, настоящий Hadoop на Windows требует отсутствующего `winutils.exe`.
+Нумерация исходных разделов README выше относится к первоначальному проекту; текущий план ПМ 12 отражён в таблице по ссылке.

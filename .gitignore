@@ -7,3 +7,15 @@ __pycache__/
 dist/
 build/
 *.spec
+
+# Local analytics runtimes and generated working files
+.tools/
+artifacts/
+spark-warehouse/
+analytics_data/*.log
+analytics_data/*.jsonl
+analytics_data/clean.csv
+analytics_data/active.csv
+analytics_data/spark_dataframe/
+analytics_data/hadoop-output*/
+practice-plan.jpg

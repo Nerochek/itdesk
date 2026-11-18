@@ -1,0 +1,104 @@
+BEFORE
+== Parsed Logical Plan ==
+'Sort ['category ASC NULLS FIRST], true
++- 'Aggregate ['category], ['category, 'COUNT(1) AS total#28]
+   +- 'Filter 'status IN (new,in_progress)
+      +- 'UnresolvedRelation [tickets], [], false
+
+== Analyzed Logical Plan ==
+category: string, total: bigint
+Sort [category#3 ASC NULLS FIRST], true
++- Aggregate [category#3], [category#3, count(1) AS total#28L]
+   +- Filter status#5 IN (new,in_progress)
+      +- SubqueryAlias tickets
+         +- View (`tickets`, [source_id#0L, source#1, title#2, category#3, priority#4, status#5, created_at#6])
+            +- Relation [source_id#0L,source#1,title#2,category#3,priority#4,status#5,created_at#6] json
+
+== Optimized Logical Plan ==
+Sort [category#3 ASC NULLS FIRST], true
++- Aggregate [category#3], [category#3, count(1) AS total#28L]
+   +- Project [category#3]
+      +- Filter status#5 IN (new,in_progress)
+         +- Relation [source_id#0L,source#1,title#2,category#3,priority#4,status#5,created_at#6] json
+
+== Physical Plan ==
+AdaptiveSparkPlan isFinalPlan=true
++- == Final Plan ==
+   ResultQueryStage 5
+   +- *(3) Sort [category#3 ASC NULLS FIRST], true, 0
+      +- AQEShuffleRead coalesced
+         +- ShuffleQueryStage 1
+            +- Exchange rangepartitioning(category#3 ASC NULLS FIRST, 200), ENSURE_REQUIREMENTS, [plan_id=239]
+               +- *(2) HashAggregate(keys=[category#3], functions=[count(1)], output=[category#3, total#28L])
+                  +- AQEShuffleRead coalesced
+                     +- ShuffleQueryStage 0
+                        +- Exchange hashpartitioning(category#3, 200), ENSURE_REQUIREMENTS, [plan_id=207]
+                           +- *(1) HashAggregate(keys=[category#3], functions=[partial_count(1)], output=[category#3, count#70L])
+                              +- *(1) Project [category#3]
+                                 +- *(1) Filter status#5 IN (new,in_progress)
+                                    +- FileScan json [category#3,status#5] Batched: false, DataFilters: [status#5 IN (new,in_progress)], Format: JSON, Location: InMemoryFileIndex(1 paths)[file:/C:/Users/Nero/Desktop/itdesk/analytics_data/clean.jsonl], PartitionFilters: [], PushedFilters: [In(status, [in_progress,new])], ReadSchema: struct<category:string,status:string>
++- == Initial Plan ==
+   Sort [category#3 ASC NULLS FIRST], true, 0
+   +- Exchange rangepartitioning(category#3 ASC NULLS FIRST, 200), ENSURE_REQUIREMENTS, [plan_id=185]
+      +- HashAggregate(keys=[category#3], functions=[count(1)], output=[category#3, total#28L])
+         +- Exchange hashpartitioning(category#3, 200), ENSURE_REQUIREMENTS, [plan_id=182]
+            +- HashAggregate(keys=[category#3], functions=[partial_count(1)], output=[category#3, count#70L])
+               +- Project [category#3]
+                  +- Filter status#5 IN (new,in_progress)
+                     +- FileScan json [category#3,status#5] Batched: false, DataFilters: [status#5 IN (new,in_progress)], Format: JSON, Location: InMemoryFileIndex(1 paths)[file:/C:/Users/Nero/Desktop/itdesk/analytics_data/clean.jsonl], PartitionFilters: [], PushedFilters: [In(status, [in_progress,new])], ReadSchema: struct<category:string,status:string>
+
+AFTER
+== Parsed Logical Plan ==
+'Sort ['category ASC NULLS FIRST], true
++- 'Aggregate ['category], ['category, 'COUNT(1) AS total#67]
+   +- 'UnresolvedRelation [active_tickets], [], false
+
+== Analyzed Logical Plan ==
+category: string, total: bigint
+Sort [category#3 ASC NULLS FIRST], true
++- Aggregate [category#3], [category#3, count(1) AS total#67L]
+   +- SubqueryAlias active_tickets
+      +- View (`active_tickets`, [category#3])
+         +- Project [category#3]
+            +- Filter status#5 IN (new,in_progress)
+               +- Project [category#3, status#5]
+                  +- Relation [source_id#0L,source#1,title#2,category#3,priority#4,status#5,created_at#6] json
+
+== Optimized Logical Plan ==
+Sort [category#3 ASC NULLS FIRST], true
++- Aggregate [category#3], [category#3, count(1) AS total#67L]
+   +- InMemoryRelation [category#3], StorageLevel(disk, memory, deserialized, 1 replicas)
+         +- *(1) Project [category#3]
+            +- *(1) Filter status#5 IN (new,in_progress)
+               +- FileScan json [category#3,status#5] Batched: false, DataFilters: [status#5 IN (new,in_progress)], Format: JSON, Location: InMemoryFileIndex(1 paths)[file:/C:/Users/Nero/Desktop/itdesk/analytics_data/clean.jsonl], PartitionFilters: [], PushedFilters: [In(status, [in_progress,new])], ReadSchema: struct<category:string,status:string>
+
+== Physical Plan ==
+AdaptiveSparkPlan isFinalPlan=true
++- == Final Plan ==
+   ResultQueryStage 6
+   +- *(3) Sort [category#3 ASC NULLS FIRST], true, 0
+      +- AQEShuffleRead coalesced
+         +- ShuffleQueryStage 2
+            +- Exchange rangepartitioning(category#3 ASC NULLS FIRST, 200), ENSURE_REQUIREMENTS, [plan_id=353]
+               +- *(2) HashAggregate(keys=[category#3], functions=[count(1)], output=[category#3, total#67L])
+                  +- AQEShuffleRead coalesced
+                     +- ShuffleQueryStage 1
+                        +- Exchange hashpartitioning(category#3, 200), ENSURE_REQUIREMENTS, [plan_id=326]
+                           +- *(1) HashAggregate(keys=[category#3], functions=[partial_count(1)], output=[category#3, count#89L])
+                              +- TableCacheQueryStage 0
+                                 +- InMemoryTableScan [category#3]
+                                       +- InMemoryRelation [category#3], StorageLevel(disk, memory, deserialized, 1 replicas)
+                                             +- *(1) Project [category#3]
+                                                +- *(1) Filter status#5 IN (new,in_progress)
+                                                   +- FileScan json [category#3,status#5] Batched: false, DataFilters: [status#5 IN (new,in_progress)], Format: JSON, Location: InMemoryFileIndex(1 paths)[file:/C:/Users/Nero/Desktop/itdesk/analytics_data/clean.jsonl], PartitionFilters: [], PushedFilters: [In(status, [in_progress,new])], ReadSchema: struct<category:string,status:string>
++- == Initial Plan ==
+   Sort [category#3 ASC NULLS FIRST], true, 0
+   +- Exchange rangepartitioning(category#3 ASC NULLS FIRST, 200), ENSURE_REQUIREMENTS, [plan_id=280]
+      +- HashAggregate(keys=[category#3], functions=[count(1)], output=[category#3, total#67L])
+         +- Exchange hashpartitioning(category#3, 200), ENSURE_REQUIREMENTS, [plan_id=277]
+            +- HashAggregate(keys=[category#3], functions=[partial_count(1)], output=[category#3, count#89L])
+               +- InMemoryTableScan [category#3]
+                     +- InMemoryRelation [category#3], StorageLevel(disk, memory, deserialized, 1 replicas)
+                           +- *(1) Project [category#3]
+                              +- *(1) Filter status#5 IN (new,in_progress)
+                                 +- FileScan json [category#3,status#5] Batched: false, DataFilters: [status#5 IN (new,in_progress)], Format: JSON, Location: InMemoryFileIndex(1 paths)[file:/C:/Users/Nero/Desktop/itdesk/analytics_data/clean.jsonl], PartitionFilters: [], PushedFilters: [In(status, [in_progress,new])], ReadSchema: struct<category:string,status:string>

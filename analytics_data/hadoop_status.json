@@ -1,0 +1,6 @@
+{
+  "returncode": 1,
+  "success_marker": false,
+  "windows_native_missing": true,
+  "log": "analytics_data/hadoop_attempt.log"
+}

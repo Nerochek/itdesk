@@ -1,0 +1,275 @@
+{
+  "query": {
+    "status": "new",
+    "category": "network"
+  },
+  "before": {
+    "explainVersion": "1",
+    "queryPlanner": {
+      "namespace": "itdesk_analytics.tickets_raw",
+      "parsedQuery": {
+        "$and": [
+          {
+            "category": {
+              "$eq": "network"
+            }
+          },
+          {
+            "status": {
+              "$eq": "new"
+            }
+          }
+        ]
+      },
+      "indexFilterSet": false,
+      "queryHash": "6F38EE61",
+      "planCacheShapeHash": "6F38EE61",
+      "planCacheKey": "1A54C38D",
+      "optimizationTimeMillis": 0,
+      "optimizationTimeMicros": 89,
+      "maxIndexedOrSolutionsReached": false,
+      "maxIndexedAndSolutionsReached": false,
+      "maxScansToExplodeReached": false,
+      "prunedSimilarIndexes": false,
+      "winningPlan": {
+        "isCached": false,
+        "stage": "COLLSCAN",
+        "filter": {
+          "$and": [
+            {
+              "category": {
+                "$eq": "network"
+              }
+            },
+            {
+              "status": {
+                "$eq": "new"
+              }
+            }
+          ]
+        },
+        "nss": "itdesk_analytics.tickets_raw",
+        "direction": "forward"
+      },
+      "rejectedPlans": []
+    },
+    "executionStats": {
+      "executionSuccess": true,
+      "nReturned": 445,
+      "executionTimeMillis": 3,
+      "executionTimeMicros": 3793,
+      "totalKeysExamined": 0,
+      "totalDocsExamined": 10200,
+      "executionStages": {
+        "isCached": false,
+        "stage": "COLLSCAN",
+        "filter": {
+          "$and": [
+            {
+              "category": {
+                "$eq": "network"
+              }
+            },
+            {
+              "status": {
+                "$eq": "new"
+              }
+            }
+          ]
+        },
+        "nReturned": 445,
+        "executionTimeMillisEstimate": 0,
+        "works": 10201,
+        "advanced": 445,
+        "needTime": 9755,
+        "needYield": 0,
+        "saveState": 0,
+        "restoreState": 0,
+        "isEOF": 1,
+        "nss": "itdesk_analytics.tickets_raw",
+        "direction": "forward",
+        "docsExamined": 10200,
+        "seeks": 0
+      }
+    },
+    "queryShapeHash": "3EA89BA4C4E8679455498A3476D6B9DECA2578972EB5322D700846B0F63D926E",
+    "command": {
+      "find": "tickets_raw",
+      "filter": {
+        "status": "new",
+        "category": "network"
+      },
+      "hint": {
+        "$natural": 1
+      },
+      "$db": "itdesk_analytics"
+    },
+    "serverInfo": {
+      "host": "DESKTOP-VTNSATI",
+      "port": 27017,
+      "version": "9.0.8",
+      "gitVersion": "115a0fe2dcd8edd5bacd4557bd2e741a8e080665"
+    },
+    "serverParameters": {
+      "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+      "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+      "internalQueryProhibitBlockingMergeOnMongoS": 0,
+      "internalQueryFrameworkControl": "trySbeRestricted",
+      "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+    },
+    "ok": 1.0
+  },
+  "after": {
+    "explainVersion": "1",
+    "queryPlanner": {
+      "namespace": "itdesk_analytics.tickets_raw",
+      "parsedQuery": {
+        "$and": [
+          {
+            "category": {
+              "$eq": "network"
+            }
+          },
+          {
+            "status": {
+              "$eq": "new"
+            }
+          }
+        ]
+      },
+      "indexFilterSet": false,
+      "queryHash": "6F38EE61",
+      "planCacheShapeHash": "6F38EE61",
+      "planCacheKey": "1A54C38D",
+      "optimizationTimeMillis": 0,
+      "optimizationTimeMicros": 150,
+      "maxIndexedOrSolutionsReached": false,
+      "maxIndexedAndSolutionsReached": false,
+      "maxScansToExplodeReached": false,
+      "prunedSimilarIndexes": false,
+      "winningPlan": {
+        "isCached": false,
+        "stage": "FETCH",
+        "nss": "itdesk_analytics.tickets_raw",
+        "inputStage": {
+          "stage": "IXSCAN",
+          "nss": "itdesk_analytics.tickets_raw",
+          "keyPattern": {
+            "status": 1,
+            "category": 1
+          },
+          "indexName": "status_category_practice",
+          "isMultiKey": false,
+          "multiKeyPaths": {
+            "status": [],
+            "category": []
+          },
+          "isUnique": false,
+          "isSparse": false,
+          "isPartial": false,
+          "indexVersion": 2,
+          "direction": "forward",
+          "indexBounds": {
+            "status": [
+              "[\"new\", \"new\"]"
+            ],
+            "category": [
+              "[\"network\", \"network\"]"
+            ]
+          }
+        }
+      },
+      "rejectedPlans": []
+    },
+    "executionStats": {
+      "executionSuccess": true,
+      "nReturned": 445,
+      "executionTimeMillis": 0,
+      "executionTimeMicros": 659,
+      "totalKeysExamined": 445,
+      "totalDocsExamined": 445,
+      "executionStages": {
+        "isCached": false,
+        "stage": "FETCH",
+        "nReturned": 445,
+        "executionTimeMillisEstimate": 0,
+        "works": 446,
+        "advanced": 445,
+        "needTime": 0,
+        "needYield": 0,
+        "saveState": 0,
+        "restoreState": 0,
+        "isEOF": 1,
+        "nss": "itdesk_analytics.tickets_raw",
+        "docsExamined": 445,
+        "alreadyHasObj": 0,
+        "inputStage": {
+          "stage": "IXSCAN",
+          "nReturned": 445,
+          "executionTimeMillisEstimate": 0,
+          "works": 446,
+          "advanced": 445,
+          "needTime": 0,
+          "needYield": 0,
+          "saveState": 0,
+          "restoreState": 0,
+          "isEOF": 1,
+          "nss": "itdesk_analytics.tickets_raw",
+          "keyPattern": {
+            "status": 1,
+            "category": 1
+          },
+          "indexName": "status_category_practice",
+          "isMultiKey": false,
+          "multiKeyPaths": {
+            "status": [],
+            "category": []
+          },
+          "isUnique": false,
+          "isSparse": false,
+          "isPartial": false,
+          "indexVersion": 2,
+          "direction": "forward",
+          "indexBounds": {
+            "status": [
+              "[\"new\", \"new\"]"
+            ],
+            "category": [
+              "[\"network\", \"network\"]"
+            ]
+          },
+          "keysExamined": 445,
+          "seeks": 1,
+          "dupsTested": 0,
+          "dupsDropped": 0,
+          "peakTrackedMemBytes": 0
+        }
+      }
+    },
+    "queryShapeHash": "3EA89BA4C4E8679455498A3476D6B9DECA2578972EB5322D700846B0F63D926E",
+    "command": {
+      "find": "tickets_raw",
+      "filter": {
+        "status": "new",
+        "category": "network"
+      },
+      "hint": "status_category_practice",
+      "$db": "itdesk_analytics"
+    },
+    "serverInfo": {
+      "host": "DESKTOP-VTNSATI",
+      "port": 27017,
+      "version": "9.0.8",
+      "gitVersion": "115a0fe2dcd8edd5bacd4557bd2e741a8e080665"
+    },
+    "serverParameters": {
+      "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+      "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+      "internalQueryProhibitBlockingMergeOnMongoS": 0,
+      "internalQueryFrameworkControl": "trySbeRestricted",
+      "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+    },
+    "ok": 1.0
+  },
+  "note": "Сравните totalDocsExamined/totalKeysExamined. Малые данные не доказывают ускорение по времени."
+}
