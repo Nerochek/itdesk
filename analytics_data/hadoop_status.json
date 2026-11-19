@@ -1,6 +1,6 @@
 {
-  "returncode": 1,
-  "success_marker": false,
-  "windows_native_missing": true,
-  "log": "analytics_data/hadoop_attempt.log"
+  "returncode": 0,
+  "success_marker": true,
+  "windows_native_missing": false,
+  "log": "analytics_data/runs/6b5f3641e72a4ca6a3fba172ed045482/hadoop_attempt.log"
 }

@@ -1,17 +1,16 @@
-"""REST API (п.15). Запуск: python run_server.py"""
+"""REST API ITDesk: все рабочие документы хранятся в MongoDB."""
 import csv
 import io
-import sqlite3
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal, Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import Response
+from fastapi.responses import Response, JSONResponse
 from pydantic import BaseModel, Field
+from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from itdesk_core import __version__
-
 from . import db
 from .security import hash_password, new_token, verify_password
 
@@ -23,14 +22,25 @@ Category = Literal["hardware", "network", "software", "projector", "account", "o
 @asynccontextmanager
 async def lifespan(_):
     db.init_db()
+    # Desktop-режим: один процесс API на базу. После перезапуска не держим
+    # блокировку задач, прерванных остановкой прежнего сервера.
+    with db.conn() as database:
+        database.processing_jobs.update_many({"status": "running"}, {"$set": {
+            "status": "failed", "error": "Предыдущий сервер был остановлен. Запустите обработку повторно."}})
+        database.processing_jobs.delete_one({"_id": "active"})
     yield
 
 
-app = FastAPI(title="ITDesk API", lifespan=lifespan)
+app = FastAPI(title="ITDesk MongoDB API", lifespan=lifespan)
 
 
-def now() -> str:
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+@app.exception_handler(PyMongoError)
+async def mongo_error(request, error):
+    return JSONResponse(status_code=503, content={"detail": "MongoDB недоступна. Проверьте запуск базы данных."})
+
+
+def now():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 class Creds(BaseModel):
@@ -57,147 +67,168 @@ class CommentIn(BaseModel):
 
 def current_user(authorization: str = Header(default="")):
     token = authorization.removeprefix("Bearer ").strip()
-    with db.conn() as c:
-        row = c.execute("SELECT u.* FROM users u JOIN sessions s ON s.user_id=u.id "
-                        "WHERE s.token=?", (token,)).fetchone()
-    if not row:
+    with db.conn() as database:
+        session = database.sessions.find_one({"token": token})
+        user = database.users.find_one({"id": session["user_id"]}, {"_id": 0}) if session else None
+    if not user:
         raise HTTPException(401, "Требуется авторизация")
-    return dict(row)
+    return user
 
 
-def staff(u=Depends(current_user)):
-    if u["role"] not in ("tech", "admin"):
+def staff(user=Depends(current_user)):
+    if user["role"] not in ("tech", "admin"):
         raise HTTPException(403, "Недостаточно прав")
-    return u
+    return user
 
 
 @app.get("/health")
 def health():
-    """Проверка работоспособности: сервер запущен и БД доступна."""
-    try:
-        with db.conn() as c:
-            c.execute("SELECT 1 FROM users LIMIT 1")
-    except sqlite3.Error:
-        raise HTTPException(503, "База данных недоступна")
-    return {"status": "ok", "version": __version__}
+    with db.conn() as database:
+        database.client.admin.command("ping")
+        return {"status": "ok", "version": __version__, "storage": "MongoDB", "database": database.name}
 
 
 @app.post("/auth/register", status_code=201)
-def register(d: Creds):
+def register(data: Creds):
     try:
-        with db.conn() as c:
-            c.execute("INSERT INTO users(username,password_hash) VALUES(?,?)",
-                      (d.username, hash_password(d.password)))
-    except sqlite3.IntegrityError:
+        with db.conn() as database:
+            database.users.insert_one({"id": db.next_id(database, "users"), "username": data.username,
+                                       "password_hash": hash_password(data.password), "role": "user"})
+    except DuplicateKeyError:
         raise HTTPException(409, "Пользователь уже существует")
     return {"ok": True}
 
 
 @app.post("/auth/login")
-def login(d: Creds):
-    with db.conn() as c:
-        u = c.execute("SELECT * FROM users WHERE username=?", (d.username,)).fetchone()
-        if not u or not verify_password(d.password, u["password_hash"]):
+def login(data: Creds):
+    with db.conn() as database:
+        user = database.users.find_one({"username": data.username})
+        if not user or not verify_password(data.password, user["password_hash"]):
             raise HTTPException(401, "Неверный логин или пароль")
         token = new_token()
-        c.execute("INSERT INTO sessions VALUES(?,?)", (token, u["id"]))
-    return {"token": token, "username": u["username"], "role": u["role"], "id": u["id"]}
+        database.sessions.insert_one({"token": token, "user_id": user["id"]})
+        return {"token": token, **{key: user[key] for key in ("id", "username", "role")}}
 
 
-_SELECT = ("SELECT t.*, a.username AS author, e.username AS assignee FROM tickets t "
-           "JOIN users a ON a.id=t.author_id LEFT JOIN users e ON e.id=t.assignee_id ")
+def ticket_query(user, tid=None):
+    query = {"id": tid} if tid is not None else {}
+    if user["role"] == "user":
+        query["author_id"] = user["id"]
+    return query
+
+
+def find_ticket(database, tid, user):
+    ticket = database.tickets.find_one(ticket_query(user, tid), {"_id": 0})
+    if not ticket:
+        raise HTTPException(404, "Заявка не найдена")
+    return ticket
 
 
 @app.get("/tickets")
-def list_tickets(status: Optional[Status] = None, u=Depends(current_user)):
-    sql, args = _SELECT + "WHERE 1=1", []
-    if u["role"] == "user":
-        sql += " AND t.author_id=?"
-        args.append(u["id"])
+def list_tickets(status: Optional[Status] = None, category: Optional[Category] = None,
+                 q: str = "", u=Depends(current_user)):
+    import re
+    query = ticket_query(u)
     if status:
-        sql += " AND t.status=?"
-        args.append(status)
-    with db.conn() as c:
-        return [dict(r) for r in c.execute(sql + " ORDER BY t.id DESC", args)]
+        query["status"] = status
+    if category:
+        query["category"] = category
+    if q:
+        query["title"] = {"$regex": re.escape(q[:120]), "$options": "i"}
+    with db.conn() as database:
+        return list(database.tickets.find(query, {"_id": 0, "comments": 0, "history": 0}).sort("id", -1))
 
 
 @app.post("/tickets", status_code=201)
-def create_ticket(d: TicketIn, u=Depends(current_user)):
-    with db.conn() as c:
-        cur = c.execute(
-            "INSERT INTO tickets(title,description,category,priority,room,author_id,created_at,updated_at)"
-            " VALUES(?,?,?,?,?,?,?,?)",
-            (d.title, d.description, d.category, d.priority, d.room, u["id"], now(), now()))
-        c.execute("INSERT INTO history(ticket_id,user_id,action,created_at) VALUES(?,?,?,?)",
-                  (cur.lastrowid, u["id"], "Заявка создана", now()))
-        return {"id": cur.lastrowid}
-
-
-def _get_ticket(c, tid, u):
-    t = c.execute(_SELECT + "WHERE t.id=?", (tid,)).fetchone()
-    if not t or (u["role"] == "user" and t["author_id"] != u["id"]):
-        raise HTTPException(404, "Заявка не найдена")
-    return t
+def create_ticket(data: TicketIn, u=Depends(current_user)):
+    if not data.title.strip() or not data.description.strip():
+        raise HTTPException(422, "Заполните тему и описание")
+    with db.conn() as database:
+        identifier = db.next_id(database, "tickets")
+        timestamp = now()
+        database.tickets.insert_one({**data.model_dump(), "id": identifier,
+            "source": "itdesk", "source_id": identifier, "status": "new", "author_id": u["id"],
+            "author": u["username"], "assignee_id": None, "assignee": None,
+            "created_at": timestamp, "updated_at": timestamp, "comments": [],
+            "history": [{"username": u["username"], "action": "Заявка создана", "created_at": timestamp}]})
+    return {"id": identifier}
 
 
 @app.get("/tickets/{tid}")
 def get_ticket(tid: int, u=Depends(current_user)):
-    with db.conn() as c:
-        t = dict(_get_ticket(c, tid, u))
-        t["comments"] = [dict(r) for r in c.execute(
-            "SELECT c.text, c.created_at, us.username FROM comments c JOIN users us ON us.id=c.user_id "
-            "WHERE ticket_id=? ORDER BY c.id", (tid,))]
-        t["history"] = [dict(r) for r in c.execute(
-            "SELECT h.action, h.created_at, us.username FROM history h JOIN users us ON us.id=h.user_id "
-            "WHERE ticket_id=? ORDER BY h.id", (tid,))]
-        return t
+    with db.conn() as database:
+        return find_ticket(database, tid, u)
+
+
+@app.get("/tickets/{tid}/document")
+def get_document(tid: int, u=Depends(staff)):
+    with db.conn() as database:
+        ticket = find_ticket(database, tid, u)
+        document = database.tickets.find_one({"id": ticket["id"]})
+        document["_id"] = str(document["_id"])
+        return {"database": database.name, "collection": "tickets", "document": document}
 
 
 @app.patch("/tickets/{tid}")
-def patch_ticket(tid: int, d: TicketPatch, u=Depends(staff)):
-    with db.conn() as c:
-        _get_ticket(c, tid, u)
-        if d.status:
-            c.execute("UPDATE tickets SET status=?, updated_at=? WHERE id=?", (d.status, now(), tid))
-            c.execute("INSERT INTO history(ticket_id,user_id,action,created_at) VALUES(?,?,?,?)",
-                      (tid, u["id"], f"Статус изменён на «{d.status}»", now()))
-        if d.assignee_id is not None:
-            if not c.execute("SELECT 1 FROM users WHERE id=? AND role IN ('tech','admin')",
-                             (d.assignee_id,)).fetchone():
+def patch_ticket(tid: int, data: TicketPatch, u=Depends(staff)):
+    with db.conn() as database:
+        find_ticket(database, tid, u)
+        changes, events = {"updated_at": now()}, []
+        # Валидация полностью до записи: неверный исполнитель не изменит статус.
+        if data.assignee_id is not None:
+            assignee = database.users.find_one({"id": data.assignee_id, "role": {"$in": ["tech", "admin"]}})
+            if not assignee:
                 raise HTTPException(400, "Исполнитель должен быть сотрудником ИТ-отдела")
-            c.execute("UPDATE tickets SET assignee_id=?, updated_at=? WHERE id=?",
-                      (d.assignee_id, now(), tid))
-            c.execute("INSERT INTO history(ticket_id,user_id,action,created_at) VALUES(?,?,?,?)",
-                      (tid, u["id"], "Назначен исполнитель", now()))
+            changes.update(assignee_id=assignee["id"], assignee=assignee["username"])
+            events.append("Назначен исполнитель")
+        if data.status:
+            changes["status"] = data.status
+            events.append(f"Статус изменён на «{data.status}»")
+        update = {"$set": changes}
+        if events:
+            update["$push"] = {"history": {"$each": [{"username": u["username"], "action": event,
+                                                      "created_at": now()} for event in events]}}
+        database.tickets.update_one({"id": tid}, update)
+    return {"ok": True}
+
+
+@app.delete("/tickets/{tid}")
+def delete_ticket(tid: int, u=Depends(staff)):
+    with db.conn() as database:
+        find_ticket(database, tid, u)
+        database.tickets.delete_one({"id": tid})
     return {"ok": True}
 
 
 @app.post("/tickets/{tid}/comments", status_code=201)
-def add_comment(tid: int, d: CommentIn, u=Depends(current_user)):
-    with db.conn() as c:
-        _get_ticket(c, tid, u)
-        c.execute("INSERT INTO comments(ticket_id,user_id,text,created_at) VALUES(?,?,?,?)",
-                  (tid, u["id"], d.text, now()))
+def add_comment(tid: int, data: CommentIn, u=Depends(current_user)):
+    with db.conn() as database:
+        find_ticket(database, tid, u)
+        database.tickets.update_one({"id": tid}, {"$push": {"comments": {
+            "username": u["username"], "text": data.text, "created_at": now()}}})
     return {"ok": True}
 
 
 @app.get("/stats")
 def stats(_=Depends(staff)):
-    with db.conn() as c:
-        by = lambda col: {r[0]: r[1] for r in c.execute(
-            f"SELECT {col}, COUNT(*) FROM tickets GROUP BY {col}")}
-        return {"by_status": by("status"), "by_category": by("category"),
-                "by_priority": by("priority")}
+    with db.conn() as database:
+        return {"by_" + column: {row["_id"]: row["count"] for row in database.tickets.aggregate([
+            {"$group": {"_id": "$" + column, "count": {"$sum": 1}}}])}
+            for column in ("status", "category", "priority")}
 
 
 @app.get("/export.csv")
 def export_csv(_=Depends(staff)):
-    with db.conn() as c:
-        rows = c.execute(_SELECT + "ORDER BY t.id").fetchall()
-    buf = io.StringIO()
-    w = csv.writer(buf, delimiter=";")
-    w.writerow(["id", "title", "category", "priority", "status", "author", "assignee", "created_at"])
-    for r in rows:
-        w.writerow([r["id"], r["title"], r["category"], r["priority"], r["status"],
-                    r["author"], r["assignee"] or "", r["created_at"]])
-    return Response("\ufeff" + buf.getvalue(), media_type="text/csv; charset=utf-8")
+    fields = ["id", "title", "category", "priority", "status", "author", "assignee", "created_at"]
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, delimiter=";")
+    writer.writerow(fields)
+    with db.conn() as database:
+        for row in database.tickets.find().sort("id", 1):
+            writer.writerow([row.get(field) or "" for field in fields])
+    return Response("\ufeff" + buffer.getvalue(), media_type="text/csv; charset=utf-8")
+
+
+# Долгие вычисления выполняются фоновыми задачами, GUI опрашивает состояние.
+from .processing import router
+app.include_router(router, dependencies=[Depends(staff)])

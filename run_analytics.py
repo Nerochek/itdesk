@@ -72,15 +72,10 @@ def main():
             run("analytics.pipeline", "plot")
         elif args.action == "full":
             start_mongo()
-            for command in ("init", "seed", "load", "crud", "search", "export-itdesk"):
-                run("analytics.pipeline", command)
-            run("analytics.pipeline", "load", "--input", DATA / "itdesk.jsonl")
-            run("analytics.pipeline", "fetch")
-            run("analytics.pipeline", "clean", "--to-mongo")
-            for command in ("benchmark", "plot", "spark"):
-                run("analytics.pipeline", command)
-            run("analytics.mapreduce.local_check")
-            print("Аналитика готова. Настоящий Hadoop запускается отдельно: python run_analytics.py hadoop")
+            from server import db
+            db.init_db()
+            run("analytics.application", "all")
+            print("Обработка заявок MongoDB завершена, включая настоящий Hadoop.")
         elif args.action == "hadoop":
             run("analytics.mapreduce.run")
         else:

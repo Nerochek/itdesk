@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 
 
 @pytest.fixture
-def client(tmp_path, monkeypatch):
+def client(tmp_path, monkeypatch, test_mongo):
     monkeypatch.setenv("ITDESK_DB", str(tmp_path / "test.db"))
     from server.main import app
     with TestClient(app) as c:

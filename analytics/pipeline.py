@@ -6,14 +6,13 @@ import os
 from pathlib import Path
 import random
 import shutil
-import sqlite3
 import statistics
 import sys
 import time
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / "analytics_data"
+DATA = Path(os.environ.get("ITDESK_ANALYTICS_DIR", ROOT / "analytics_data"))
 CATEGORIES = ("hardware", "network", "software", "projector", "account", "other")
 STATUSES = ("new", "in_progress", "resolved", "closed")
 PRIORITIES = ("low", "medium", "high")
@@ -107,15 +106,10 @@ def load(args):
 
 
 def export_itdesk(args):
-    path = Path(args.database).resolve()
-    if not path.is_file():
-        raise ValueError(f"База ITDesk не найдена: {path}")
-    # Чтение исходной SQLite только для экспорта, без персональных данных.
-    with sqlite3.connect(path.as_uri() + "?mode=ro", uri=True) as connection:
-        connection.row_factory = sqlite3.Row
-        rows = ({"source": "itdesk", "source_id": row["id"], **dict(row)} for row in connection.execute(
-            "SELECT id,title,category,priority,status,created_at FROM tickets ORDER BY id"))
-        write_jsonl(args.output, rows)
+    from server import db
+    with db.conn() as database:
+        fields = {key: 1 for key in ("source", "source_id", "title", "category", "priority", "status", "created_at")}
+        write_jsonl(args.output, database.tickets.find({}, {**fields, "_id": 0}).sort("id", 1))
     print("Выгрузка ITDesk:", args.output)
 
 
@@ -296,7 +290,7 @@ def plot(args):
         axis.set_ylabel("Число заявок")
         axis.set_xlabel("")
         axis.tick_params(axis="x", rotation=40)
-    fig.suptitle(f"ITDesk: {len(frame)} записей; источники: {", ".join(sorted(frame.source.unique()))}")
+    fig.suptitle(f"ITDesk: {len(frame)} записей; источники: {', '.join(sorted(frame.source.unique()))}")
     fig.tight_layout()
     DATA.mkdir(exist_ok=True)
     fig.savefig(DATA / "dashboard.png", dpi=160)
@@ -335,7 +329,6 @@ def main():
     sub = command("load", load)
     sub.add_argument("--input", type=Path, default=DATA / "demo.jsonl")
     sub = command("export-itdesk", export_itdesk)
-    sub.add_argument("--database", type=Path, default=ROOT / "itdesk.db")
     sub.add_argument("--output", type=Path, default=DATA / "itdesk.jsonl")
     command("crud", crud)
     sub = command("search", search)

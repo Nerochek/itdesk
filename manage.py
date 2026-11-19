@@ -13,20 +13,22 @@ def set_password(username: str, password: str) -> None:
     if len(password) < 6:
         raise ValueError("Пароль должен быть не короче 6 символов")
     with db.conn() as c:
-        row = c.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
+        row = c.users.find_one({"username": username})
         if not row:
             raise ValueError(f"Пользователь {username!r} не найден")
-        c.execute("UPDATE users SET password_hash=? WHERE id=?", (hash_password(password), row["id"]))
-        c.execute("DELETE FROM sessions WHERE user_id=?", (row["id"],))  # разлогинить везде
+        c.users.update_one({"id": row["id"]}, {"$set": {"password_hash": hash_password(password)}})
+        c.sessions.delete_many({"user_id": row["id"]})
 
 
 def set_role(username: str, role: str) -> None:
     if role not in ("user", "tech", "admin"):
         raise ValueError("Роль должна быть user, tech или admin")
     with db.conn() as c:
-        if not c.execute("UPDATE users SET role=? WHERE username=?", (role, username)).rowcount:
+        user = c.users.find_one({"username": username})
+        if not user:
             raise ValueError(f"Пользователь {username!r} не найден")
-        c.execute("DELETE FROM sessions WHERE user_id=(SELECT id FROM users WHERE username=?)", (username,))
+        c.users.update_one({"id": user["id"]}, {"$set": {"role": role}})
+        c.sessions.delete_many({"user_id": user["id"]})
 
 
 def main(argv):

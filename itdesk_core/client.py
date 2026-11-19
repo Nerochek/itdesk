@@ -36,8 +36,24 @@ class Api:
     def register(self, username, password):
         self._req("POST", "/auth/register", json={"username": username, "password": password})
 
-    def tickets(self, status=None):
-        return self._req("GET", "/tickets", params={"status": status} if status else None)
+    def tickets(self, status=None, q="", category=None):
+        return self._req("GET", "/tickets", params={key: value for key, value in
+                         {"status": status, "q": q, "category": category}.items() if value})
+
+    def document(self, tid):
+        return self._req("GET", f"/tickets/{tid}/document")
+
+    def delete_ticket(self, tid):
+        return self._req("DELETE", f"/tickets/{tid}")
+
+    def start_processing(self, action):
+        return self._req("POST", "/processing/jobs", json={"action": action})
+
+    def processing_job(self, identifier):
+        return self._req("GET", f"/processing/jobs/{identifier}")
+
+    def processing_file(self, identifier, filename):
+        return self._req("GET", f"/processing/jobs/{identifier}/files/{filename}")
 
     def ticket(self, tid):
         return self._req("GET", f"/tickets/{tid}")

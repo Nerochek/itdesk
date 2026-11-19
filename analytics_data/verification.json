@@ -1,13 +1,68 @@
 {
   "date": "2026-11-18",
-  "raw_count": 10200,
-  "clean_count": 10200,
-  "source_counts": {
-    "demo": 10000,
-    "jsonplaceholder": 200
+  "tests_passed": 29,
+  "application": {
+    "database": "itdesk",
+    "users": 3,
+    "tickets": 1
   },
-  "spark_rdd_dataframe_sql_equal": true,
-  "unit_tests": 4,
-  "existing_tests": 22,
-  "hadoop_completed": false
+  "integration_test_snapshot": {
+    "input_rows": 1200,
+    "output_rows": 1200,
+    "removed_rows": 0
+  },
+  "hadoop": {
+    "returncode": 0,
+    "success_marker": true,
+    "windows_native_missing": false,
+    "log": "analytics_data/runs/6b5f3641e72a4ca6a3fba172ed045482/hadoop_attempt.log"
+  },
+  "hadoop_result": {
+    "counts": {
+      "account": 74,
+      "hardware": 78,
+      "network": 81,
+      "other": 191,
+      "projector": 88,
+      "software": 82
+    },
+    "equal": true,
+    "engine": "Apache Hadoop Streaming"
+  },
+  "spark_sql": {
+    "rows": [
+      {
+        "category": "account",
+        "total": 74
+      },
+      {
+        "category": "hardware",
+        "total": 78
+      },
+      {
+        "category": "network",
+        "total": 81
+      },
+      {
+        "category": "other",
+        "total": 191
+      },
+      {
+        "category": "projector",
+        "total": 88
+      },
+      {
+        "category": "software",
+        "total": 82
+      }
+    ],
+    "baseline_seconds": 0.026949999999487773,
+    "cached_seconds": 0.023784199999681732,
+    "cache_build_seconds": 0.23927720000028785,
+    "note": "Медиана 3 повторов после прогрева. Время построения кэша не включено. Ускорение не гарантируется."
+  },
+  "gui_graph_and_cyrillic_verified": true,
+  "one_command_launcher_verified": true,
+  "test_data_note": "Учебные записи проверены в изолированной тестовой базе, которая удалена после теста.",
+  "sample_run_directory": "analytics_data/runs/6b5f3641e72a4ca6a3fba172ed045482"
 }

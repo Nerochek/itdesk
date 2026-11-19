@@ -28,12 +28,14 @@ def main():
             ("common", "hdfs", "mapreduce", "yarn") for suffix in ("/*", "/lib/*")]
     classpath = os.pathsep.join(str(home / part) for part in parts)
     python = Path(sys.executable).name
+    # Standalone использует абсолютные пути: Windows не требует прав на symlink.
+    mapper = ROOT / "analytics/mapreduce/mapper.py"
+    reducer = ROOT / "analytics/mapreduce/reducer.py"
     command = [java, "-cp", classpath, "org.apache.hadoop.util.RunJar", str(jars[0]),
         "-D", "mapreduce.framework.name=local", "-D", "fs.defaultFS=file:///",
-        "-files", "analytics/mapreduce/mapper.py,analytics/mapreduce/reducer.py",
         "-input", str(args.input.resolve()), "-output", str(args.output.resolve()),
-        "-mapper", f"{python} mapper.py", "-reducer", f"{python} reducer.py",
-        "-combiner", f"{python} reducer.py", "-numReduceTasks", "1"]
+        "-mapper", f'{python} "{mapper}"', "-reducer", f'{python} "{reducer}"',
+        "-combiner", f'{python} "{reducer}"', "-numReduceTasks", "1"]
     result = subprocess.run(command, cwd=ROOT, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, text=True, errors="replace")
     DATA.mkdir(exist_ok=True)

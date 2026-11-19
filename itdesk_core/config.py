@@ -6,6 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 
 DEFAULTS = {
+    "mongodb": {"uri": "mongodb://127.0.0.1:27017", "database": "itdesk"},
     "server": {"host": "127.0.0.1", "port": "8000", "db_path": "itdesk.db"},
     "client": {"server_url": "http://127.0.0.1:8000"},
 }

@@ -19,3 +19,5 @@ analytics_data/active.csv
 analytics_data/spark_dataframe/
 analytics_data/hadoop-output*/
 practice-plan.jpg
+analytics_data/runs/
+analytics_data/hadoop-verified/
